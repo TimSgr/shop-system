@@ -6,6 +6,30 @@
     <title>Produktübersicht</title>
 </head>
 <body>
+    <script>
+        function get_all_products(){
+            fetch("/")
+            .then(response=>response.json())
+            .then(products => {
+                const product_container=document.querySelector(".product-wrapper");
+                if(products==[]){
+                    products.forEach(product => {
+                        let {product_name, category, price} = product;
+                        const productElement = document.createElement("div");
+                        productElement.classList.add("single_product");
+                        productElement.innerHTML=`
+                            <div class="product_card">
+                                <div class="product_title"><span>${product_name}</span></div>
+                                <div class="price"><span>${price}</span></div>
+                            </div>
+                        `;
+                    });
+                }else{
+                    product_container.innerHTML="<div>Keine Produkte gefunden</div>";
+                }
+            });
+        }
+    </script>
     <aside>
         <nav>
             <ul>
@@ -18,6 +42,8 @@
     </aside>
     <header>
         <div>Elemente</div>
+        <div class="product-wrapper">
+        </div>
     </header>
     <main>
         <h3>Produktübersicht</h3>
