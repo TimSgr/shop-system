@@ -1,0 +1,28 @@
+version: '3.1'
+
+services:
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: deinPasswort
+    ports:
+      - "5432:5432"
+    volumes:
+      - my_db_data:/var/lib/postgresql/data
+
+
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - /usr/src/app/node_modules
+      - ./public:/usr/src/app/public
+    environment:
+      DATABASE_URL: postgres://postgres:deinPasswort@db:5432/test
+    depends_on:
+      - db
+
+volumes:
+  my_db_data:
