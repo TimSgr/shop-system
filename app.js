@@ -66,6 +66,24 @@ app.post('/auth', async (req, res) => {
   }
 });
 
+// Admin Login
+app.post('/admin-auth', async (req, res) => {
+  const { email, password} = req.body;
+  const role = "admin";
+  try {
+    const result = await pool.query('SELECT * FROM "users" WHERE email = $1 AND password = $2 AND role = $3', [email, password, role]);
+    if(result.rowCount==0){
+      res.status(201).json("Nutzername oder Passwort falsch");
+    }else{
+      res.status(201).json("Willkommen");
+    }
+    
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 // User Registration
 app.post('/auth/register', async (req, res) => {
   const { name, email, password, password_confirm } = req.body;

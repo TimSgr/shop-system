@@ -6,13 +6,31 @@
     <title>Produktübersicht</title>
 </head>
 <body>
+    <aside>
+        <nav>
+            <ul>
+                <li><a href="test">Home</a></li>
+                <li><a href="test">Produkte</a></li>
+                <li><a href="test">FAQ</a></li>
+                <li><a href="test">Login</a></li>
+            </ul>
+        </nav>
+    </aside>
+    <header>
+    </header>
+    <main>
+        <h3>Produktübersicht</h3>
+        <div class="product-wrapper">
+        </div>
+    </main>
     <script>
         function get_all_products(){
-            fetch("/")
+            fetch("/api/products")
             .then(response=>response.json())
             .then(products => {
+                console.log(products);
                 const product_container=document.querySelector(".product-wrapper");
-                if(products==[]){
+                if(products.length>0){
                     products.forEach(product => {
                         let {product_name, category, price} = product;
                         const productElement = document.createElement("div");
@@ -29,24 +47,7 @@
                 }
             });
         }
+        get_all_products();
     </script>
-    <aside>
-        <nav>
-            <ul>
-                <li><a href="test">test</a></li>
-                <li><a href="test">test</a></li>
-                <li><a href="test">test</a></li>
-                <li><a href="test">test</a></li>
-            </ul>
-        </nav>
-    </aside>
-    <header>
-        <div>Elemente</div>
-        <div class="product-wrapper">
-        </div>
-    </header>
-    <main>
-        <h3>Produktübersicht</h3>
-    </main>
 </body>
 </html>
