@@ -4,7 +4,15 @@ const { Pool } = require('pg');
 const initDb = require('./init-db'); // Importiere deine init-db.js
 const app = express();
 const port = 3000;
+const bcrypt = require('bcryptjs');
+const session = require('express-session');
 
+app.use(session({
+  secret: 'geheimesWort',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: true }
+}));
 app.use(express.json());
 app.use(express.urlencoded({extended: 'false'}))
 app.use(express.static('public'));
@@ -14,17 +22,19 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL
 });
 
-// Funktion zum Initialisieren der Datenbank
 async function initializeDatabase() {
   try {
     await pool.query(initDb.createUsersTable);
     await pool.query(initDb.createProductsTable);
+    await pool.query(initDb.createOrdersTable);
+    await initDb.createAdminUser(pool);
     console.log("Datenbank wurde initialisiert.");
   } catch (err) {
     console.error("Fehler bei der Initialisierung der Datenbank:", err);
-    process.exit(-1); // Beendet den Prozess mit einem Fehlercode
+    process.exit(-1);
   }
 }
+
 
 // Starte die Datenbankinitialisierung und dann den Server
 initializeDatabase().then(() => {
@@ -49,17 +59,59 @@ app.get('/products', (req, res) => {
     res.sendFile('product_overview.html', { root: './public/pages' });
 });
 
+app.get('/admin', (req, res) => {
+  res.sendFile('admin.html', { root: './public/pages' });
+});
+
+app.get('/dashboard', checkRole('administrator'), (req, res) => {
+  res.sendFile('dashboard.html', { root: './public/pages' });
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy(err => {
+    if (err) {
+      res.status(500).send('Fehler beim Abmelden');
+    } else {
+      res.redirect('/login'); // Oder sende eine Bestätigung
+    }
+  });
+});
+
+app.get('/api/get-user-role', (req, res) => {
+  if (req.session.role) {
+    res.json({ role: req.session.role });
+  } else {
+    res.status(401).json({ role: 'none' });
+  }
+});
+
 // User Login
 app.post('/auth', async (req, res) => {
-  const { email, password} = req.body;
+  const { email, password } = req.body;
+
   try {
-    const result = await pool.query('SELECT * FROM "users" WHERE email = $1 AND password = $2', [email, password]);
-    if(result.rowCount==0){
-      res.status(201).json("Nutzername oder Passwort falsch");
-    }else{
-      res.status(201).json("Willkommen");
-    }
+    // Hole den Benutzer anhand der E-Mail
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     
+    if (result.rows.length > 0) {
+      const user = result.rows[0];
+
+      // Überprüfe das Passwort gegen den Hash
+      const match = await bcrypt.compare(password, user.password);
+
+      if (match) {
+        req.session.userId = user.id;
+        req.session.role = user.role;
+
+        res.status(200).json("Willkommen");
+      } else {
+        // Passwort stimmt nicht überein
+        res.status(401).json("Benutzername oder Passwort falsch");
+      }
+    } else {
+      // Kein Benutzer gefunden
+      res.status(404).json("Benutzer nicht gefunden");
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -68,16 +120,30 @@ app.post('/auth', async (req, res) => {
 
 // Admin Login
 app.post('/admin-auth', async (req, res) => {
-  const { email, password} = req.body;
-  const role = "admin";
+  const { email, password } = req.body;
+  const role = "administrator";
+
   try {
-    const result = await pool.query('SELECT * FROM "users" WHERE email = $1 AND password = $2 AND role = $3', [email, password, role]);
-    if(result.rowCount==0){
-      res.status(201).json("Nutzername oder Passwort falsch");
-    }else{
-      res.status(201).json("Willkommen");
+    const result = await pool.query('SELECT * FROM users WHERE email = $1 AND role = $2', [email, role]);
+
+    if (result.rowCount > 0) {
+      const user = result.rows[0];
+      const match = await bcrypt.compare(password, user.password);
+
+      if (match) {
+        // Der Benutzer ist authentifiziert und hat die Rolle 'administrator'
+        req.session.role = user.role;
+        req.session.userId = user.id;
+        res.status(200).json("Willkommen, Administrator.");
+
+      } else {
+        // Ungültige Anmeldeinformationen
+        res.status(401).json("Passwort stimmt nicht");
+      }
+    } else {
+      // Kein Administrator mit dieser E-Mail gefunden
+      res.status(401).json("Nutzer existiert nicht");
     }
-    
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -92,7 +158,8 @@ app.post('/auth/register', async (req, res) => {
     try {
       const result = await pool.query('SELECT email FROM users WHERE email = $1', [email]);
       if(result.rowCount==0){
-        const result = await pool.query('INSERT INTO users(name, email, role, password) VALUES($1, $2, $3, $4) RETURNING *', [name, email, role, password]);
+        const hashedPassword  = await bcrypt.hashSync(password, 10);
+        const result = await pool.query('INSERT INTO users(name, email, role, password) VALUES($1, $2, $3, $4) RETURNING *', [name, email, role, hashedPassword]);
         res.status(201).json(result.rows[0]);
       }else{
         req.status(201).json("Emailadresse im System schon vorhanden");
@@ -176,4 +243,12 @@ app.post('/api/products', async (req, res) => {
     }
   });
 
-  
+function checkRole(role) {
+  return function(req, res, next) {
+    if (req.session.role && req.session.role === role) {
+      next(); // Benutzer hat die erforderliche Rolle, fahre fort
+    } else {
+      res.status(403).send('Zugriff verweigert'); // Benutzer hat nicht die erforderliche Rolle
+    }
+  }
+}

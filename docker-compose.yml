@@ -17,10 +17,13 @@ services:
     ports:
       - "3000:3000"
     volumes:
+      - .:/usr/src/app
       - /usr/src/app/node_modules
       - ./public:/usr/src/app/public
     environment:
       DATABASE_URL: postgres://postgres:deinPasswort@db:5432/test
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     depends_on:
       - db
 
