@@ -160,7 +160,7 @@ app.post('/auth/register', async (req, res) => {
       if(result.rowCount==0){
         const hashedPassword  = await bcrypt.hashSync(password, 10);
         const result = await pool.query('INSERT INTO users(name, email, role, password) VALUES($1, $2, $3, $4) RETURNING *', [name, email, role, hashedPassword]);
-        res.status(201).json(result.rows[0]);
+        res.json("erfolgreich account erstellt");
       }else{
         req.status(201).json("Emailadresse im System schon vorhanden");
       }

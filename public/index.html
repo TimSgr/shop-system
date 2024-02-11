@@ -6,7 +6,36 @@
     <title>Document</title>
 </head>
 <body>
-    Hi!
-    <a href="/login/">Login</a>
+    <div class="content">
+
+    </div>
+    
+<script>
+    fetch('/api/get-user-role')
+    .then(response => response.json())
+    .then(data => {
+        const content_section = document.createElement("div");
+        if (data.role == 'none') {
+            content_section.innerHTML=`
+            <div class="">
+                Nicht angemeldet
+                <a href="/login/">Login</a>
+            </div>`;
+            document.querySelector(".content").appendChild(content_section);
+        } else if(data.role == 'administrator'){
+            content_section.innerHTML=`
+            <div class="">
+                Admin
+            </div>`;
+            document.querySelector(".content").appendChild(content_section);
+        }else{
+            content_section.innerHTML=`
+            <div class="">
+                Normaler User
+            </div>`;
+            document.querySelector(".content").appendChild(content_section);
+        }
+    });
+</script>
 </body>
 </html>
