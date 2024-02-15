@@ -15,6 +15,7 @@
     .then(response => response.json())
     .then(data => {
         const content_section = document.createElement("div");
+        console.log(data);
         if (data.role == 'none') {
             content_section.innerHTML=`
             <div class="">
